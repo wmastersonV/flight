@@ -34,7 +34,7 @@ CSV_COLUMNS = ['departure_lat', 'departure_lon', 'arrival_lat', 'arrival_lon', '
 
 LABEL_COLUMN = 'arrival_delay'
 
-DEFAULTS = [[999.0], [999.0], [999.0], [999.0], ['NA'], ['NA'],['NA'], [999], [999], [999], [6], [2], [2], [2], [2], [2], [807], [111]]
+DEFAULTS = [[999.0], [999.0], [999.0], [999.0], ['NA'], ['NA'],['NA'], [999], [999], [999], [6.0], [2], [2], [2], [2], [2], [807.0], [111.0]]
 
 # These are the raw input columns, and will be provided for prediction also
 INPUT_COLUMNS = [
@@ -68,15 +68,7 @@ def build_estimator(model_dir, nbuckets, hidden_units):
 
     (week, dow, month, airline, arrival_airport, departure_airport, depart_minutes, scheduled_flight_time, departure_lat, departure_lon, \
     arrival_lat, arrival_lon, latdiff, londiff, euclidean) = INPUT_COLUMNS
-#    depart_minutes = tft.scale_to_0_1(depart_minutes)
-#    scheduled_flight_time = tft.scale_to_0_1(scheduled_flight_time)    
-#    departure_lat = tft.scale_to_0_1(departure_lat)
-#    departure_lon = tft.scale_to_0_1(departure_lon)   
-#    arrival_lat = tft.scale_to_0_1(arrival_lat)
-#    arrival_lon = tft.scale_to_0_1(arrival_lon)  
-#    depart_minutes = tft.scale_to_0_1(depart_minutes)
-#    scheduled_flight_time = tft.scale_to_0_1(scheduled_flight_time)
-    
+
     # Bucketize the lats & lons
     latbuckets = np.linspace(-180, 180, nbuckets).tolist()
     lonbuckets = np.linspace(-180, 180, nbuckets).tolist()
@@ -147,12 +139,38 @@ def add_engineered(features):
 
 # Create serving input function to be able to serve predictions
 def serving_input_fn():
+#     pb.set_trace()
+#         (week, dow, month, airline, arrival_airport, departure_airport, depart_minutes, scheduled_flight_time, departure_lat, departure_lon, \
+#     arrival_lat, arrival_lon, latdiff, londiff, euclidean)
+
+#     tf.feature_column.categorical_column_with_identity('week', num_buckets=54),
+#     tf.feature_column.categorical_column_with_identity('dow', num_buckets = 8),
+#     tf.feature_column.categorical_column_with_identity('month', num_buckets = 13),
+#     tf.feature_column.categorical_column_with_vocabulary_list('airline', vocabulary_list=airlines),
+#     tf.feature_column.categorical_column_with_vocabulary_list('arrival_airport',vocabulary_list=all_air),
+#     tf.feature_column.categorical_column_with_vocabulary_list('departure_airport',vocabulary_list=all_air),
+#     tf.feature_column.numeric_column('depart_minutes'),
+#     tf.feature_column.numeric_column('scheduled_flight_time'),
+#     tf.feature_column.numeric_column('departure_lat'),
+#     tf.feature_column.numeric_column('departure_lon'),
+#     tf.feature_column.numeric_column('arrival_lat'),
+#     tf.feature_column.numeric_column('arrival_lon'),
+    
+# #    engineered features
+#     tf.feature_column.numeric_column('latdiff'),
+#     tf.feature_column.numeric_column('londiff'),
+#     tf.feature_column.numeric_column('euclidean')
+
     feature_placeholders = {
         # All the real-valued columns
-        column.name: tf.placeholder(tf.float32, [None]) for column in INPUT_COLUMNS[2:]
+        column.name: tf.placeholder(tf.float32, [None]) for column in INPUT_COLUMNS
     }
-    feature_placeholders['dayofweek'] = tf.placeholder(tf.string, [None])
-    feature_placeholders['hourofday'] = tf.placeholder(tf.int32, [None])
+    feature_placeholders['airline'] = tf.placeholder(tf.string, [None])
+    feature_placeholders['arrival_airport'] = tf.placeholder(tf.string, [None])
+    feature_placeholders['departure_airport'] = tf.placeholder(tf.string, [None])
+    feature_placeholders['dow'] = tf.placeholder(tf.int64, [None])
+    feature_placeholders['week'] = tf.placeholder(tf.int64, [None])
+    feature_placeholders['month'] = tf.placeholder(tf.int64, [None])
 
     features = {
         key: tf.expand_dims(tensor, -1)
@@ -182,6 +200,7 @@ def read_dataset(filename, mode, batch_size = 512):
             num_epochs = 1 # end-of-input after this
 
         dataset = dataset.repeat(num_epochs).batch(batch_size)
+        
         batch_features, batch_labels = dataset.make_one_shot_iterator().get_next()
         return batch_features, batch_labels
     return _input_fn
